@@ -1,146 +1,118 @@
 import plotly.express as px
 from shiny.express import input, ui
+from shiny import render, reactive
 from shinywidgets import render_plotly
-import palmerpenguins  # This package provides the Palmer Penguins dataset
 import pandas as pd
 import seaborn as sns
-from shiny import reactive, render, req
+from palmerpenguins import load_penguins
 
-# Use the built-in function to load the Palmer Penguins dataset
-penguins_df = palmerpenguins.load_penguins()
+# load penguins dataset
+penguins_df = load_penguins()
 
-# names the page
-ui.page_opts(title="DavidRm Penguin", fillable=True)
+ui.page_opts(title="Kamalini Penguin Data")
 
-# creates sidebar for user interaction
+# add ui sidebar
 with ui.sidebar(open="open"):
-    ui.h5("Sidebar")
+    ui.h2("Sidebar") # add second level header to sidebar
     
-    # Creates a dropdown input to choose a column 
-    ui.input_selectize(
-        "selected_attribute",
-        "Select Plotly Attribute",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
-    )
-
-    # Creates a numeric input for the number of Plotly histogram bins
-    ui.input_numeric("plotly_bin_count", "Number of Plotly bins", 30)
+    # Dropdown to select attribute 
+    ui.input_selectize("selected_attribute", "Body Measurement in Millimeters", 
+                       ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]) 
     
-    # Creates a slider input for the number of Seaborn bins
-    ui.input_slider("seaborn_bin_count", "Number of Seaborn bins", 1, 40, 20)
+    # input for number of bins
+    ui.input_numeric("plotly_bin_count", "Bin Count", 25)
+    
+    # create slider
+    ui.input_slider("seaborn_bin_count", "Bin Count", 3, 100, 25)
 
-    # Adds a horizontal rule to the sidebar
+    # Create a checkbox group input to filter the species
+    ui.input_checkbox_group("species_list", "Selected species", 
+                            ["Adelie", "Chinstrap", "Gentoo"], selected=["Adelie", "Chinstrap"], inline=True)
+
+        # Create a checkbox group input to filter the island
+    ui.input_checkbox_group("island_list", "Selected island", 
+                            ["Torgersen", "Biscoe", "Dream"], selected=["Torgersen", "Biscoe", "Dream"], inline=True)
+    
+    # Add a horizontal rule to the sidebar
     ui.hr()
+
+    # Add a hyperlink to the sidebar
+    ui.a("Kamalini Repo", href="https://github.com/S573647/cintel-03-reactive", target="_blank")
     
-    # Creates a checkbox group input
-    ui.input_checkbox_group(
-        "selected_species_list",
-        "Species",
-        ["Adelie", "Gentoo", "Chinstrap"],
-        selected=["Adelie"],
-        inline=True,
-    )
-
-    # Creates a checkbox group input for islands
-    ui.input_checkbox_group(
-        "selected_island_list",
-        "Islands",
-        penguins_df["island"].unique().tolist(),
-        selected=penguins_df["island"].unique().tolist(),
-        inline=True,
-    )
-
-    # Adds a hyperlink to GitHub Repo
-    ui.a(
-        "GitHub",
-         href="https://github.com/drodmay1/cintel-03-reactive/blob/main/app.py",
-         target="_blank",
-         )
-
-# Creates a DataTable showing all data
-
+    # display data grid and data table
 with ui.layout_columns():        
     with ui.card(full_screen=True):
-        ui.h6("Penguins DataTable")
-        
-
+        ui.card_header("Penguins Data Table")
         @render.data_frame
         def render_penguins_table():
-            return render.DataTable(filtered_data())
-
-# Creates a DataGrid showing all data      
-    with ui.card(full_screen=True):
-        ui.h6("Penguins DataGrid")
-
-        @render.data_frame
-        def penguins_datagrid():
-            return render.DataGrid(filtered_data()) 
-
-# Creates a Plotly Histogram showing all species
-
-    with ui.card(full_screen=True):
-        ui.card_header("Plotly Histogram")
-    
-        @render_plotly
-        def plotly_histogram():
-          return px.histogram(
-          filtered_data(), 
-          x=input.selected_attribute(), 
-          nbins=input.plotly_bin_count(),
-          color="species",
-          )     
-
-# Creates a Seaborn Histogram showing all species
-
-    with ui.card(full_screen=True):
-        ui.card_header("Seaborn Histogram")
-
-        palette = sns.color_palette("Set3")  # Choose a palette with 3 colors
-
-        @render.plot(alt="Seaborn Histogram")
-        def seaborn_histogram():
-          histplot = sns.histplot(filtered_data(), x="body_mass_g", bins=input.seaborn_bin_count(), hue="species", palette=palette)
-          histplot.set_title("Palmer Penguins")
-          histplot.set_xlabel("Body Mass (g)")  # Set x-axis label
-          histplot.set_ylabel("Count")  # Set y-axis label
-          return histplot
-
-# Creates a Plotly Scatterplot showing all species and islands
-
-    with ui.card(full_screen=True):
-        ui.card_header("Plotly Scatterplot: Species and islands")
-
-        @render_plotly
-        def plotly_scatterplot():
-            return px.scatter(filtered_data(),
-                x="bill_length_mm",
-                y="body_mass_g",
-                color="species",
-                facet_col="island",  # Add facet_col parameter to separate scatterplots by island
-                title="Penguins Plot",
-                labels={
-                "bill_length_mm": "Bill Length (mm)",
-                "body_mass_g": "Body Mass (g)",
-            }, 
-        )
-
-# Creates a Plotly Boxplot showing all species and islands
-    with ui.card(full_screen=True):
-        ui.card_header("Plotly Boxplot: Species")
-
-        @render_plotly
-        def plotly_boxplot():
-            return px.box(filtered_data(),
-                x="species",
-                y=input.selected_attribute(),
-                color="island", #Add a color parameter to differentiate boxplots by island
-                title="Penguins Boxplot",
-                labels={
-                    "species": "Species",
-                    input.selected_attribute(): input.selected_attribute().replace("_", " ").title(),
-                },
-            )
+            return filtered_data()
         
+with ui.layout_columns(): 
+    with ui.card(full_screen=True):
+        ui.card_header("Penguins Data Grid")
+        @render.data_frame
+        def penguins_data():
+            return render.DataGrid(data=filtered_data(), row_selection_mode="multiple") 
+
+# Plotly histogram showing all species
+with ui.card(full_screen=True):
+    ui.card_header("Plotly Histogram")
+    @render_plotly  
+    def plot_plt():  
+        return px.histogram(filtered_data(),
+            x=input.selected_attribute(),
+            nbins=input.plotly_bin_count(),
+            color="species",
+            title="Penguin bill depth",
+            labels={"selected_attribute": "Selected Attribute", "count": "Count"})
+        
+# Seaborn histogram showing all species
+with ui.card(full_screen=True):
+    ui.card_header("Seaborn Histogram")
+
+    @render.plot(alt="Seaborn Histogram")
+    def seaborn_histogram():
+        histplot = sns.histplot(filtered_data(), x=input.selected_attribute(), bins=input.seaborn_bin_count())
+        histplot.set_title("Penguin Data")
+        histplot.set_xlabel("Selected Attribute")
+        histplot.set_ylabel("Count")
+        return histplot
+        
+# Plotly Scatterplot showing all species
+with ui.card(full_screen=True):
+    ui.card_header("Plotly Scatterplot")
+
+    @render_plotly
+    def plotly_scatterplot():
+        return px.scatter(filtered_data(),
+            x="bill_depth_mm",
+            y="flipper_length_mm",
+            color="species",
+            hover_name="island",
+            title="Scatterplot of Bill Length vs. Body Mass by Species",
+            labels={
+                "bill_depth_mm": "Bill Depth (mm)",
+                "flipper_length_mm": "Flipper Length (mm)"})
+        
+# 3d scatterplot showing all species
+with ui.card(full_screen=True):
+    ui.card_header("3D Scatter Plot Penguin Data")
+
+    @render_plotly
+    def scatter_3d_plot():
+        return px.scatter_3d(
+            filtered_data(),
+            x="body_mass_g",
+            y="bill_depth_mm",
+            z="flipper_length_mm",
+            color="species",
+            hover_name="island",
+            title="3D Scatter Plot of Body Mass, Bill Length, and Flipper Length",
+            labels={
+                "body_mass_g": "Body Mass (g)",
+                "bill_depth_mm": "Bill Depth (mm)",
+                "flipper_length_mm": "Flipper Length (mm)"})
+
 
 # --------------------------------------------------------
 # Reactive calculations and effects
@@ -151,10 +123,7 @@ with ui.layout_columns():
 # The function will be called whenever an input functions used to generate that output changes.
 # Any output that depends on the reactive function (e.g., filtered_data()) will be updated when the data changes.
 
-# Reactive calculation to filter data based on selected species and islands
 @reactive.calc
 def filtered_data():
-    return penguins_df[
-        (penguins_df["species"].isin(input.selected_species_list())) &
-        (penguins_df["island"].isin(input.selected_island_list()))
-    ]
+    return penguins_df[penguins_df["species"].isin(input.species_list()) & penguins_df["island"].isin(input.island_list())]
+    
